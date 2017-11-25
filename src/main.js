@@ -16,7 +16,9 @@ if ('serviceWorker' in navigator) {
   })
 }
 
-Vue.use(BlockifyPlugin)
+Vue.use(BlockifyPlugin, {
+  spotifyToken: process.env.SPOTIFY_TOKEN
+})
 
 Vue.config.productionTip = false
 
