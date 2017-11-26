@@ -2,18 +2,17 @@ pragma solidity ^0.4.4;
 
 contract Blockify {
 	struct Song {
-		bytes32 spotifyURI;
-		int8 vote;
+		uint bans;
 	}
 
 	// address of deployer
 	address public owner;
 
-	// eth cost to vote
-	uint public voteUnitCost;
+	// cost to ban
+	uint public banCost;
 
 	// additional cost to add a song per vote
-	uint public voteCostModifier;
+	uint public banModifier;
 
 	// base cost to add a song
 	uint public baseAddCost;
@@ -26,16 +25,28 @@ contract Blockify {
 
 	function Blockify() public {
 		owner = msg.sender;
-		voteUnitCost = 100;
-		voteCostModifier = 100;
+		banCost = 100;
+		banModifier = 100;
 		baseAddCost = 100;
 	}
 
-	function queueSong(bytes32 spotifyURI) public payable {
-		//
+	function requestSong(bytes32 spotifyURI) public payable {
+		Song storage song = songs[spotifyURI];
+		require(msg.value >= baseAddCost + banModifier * song.bans);
+		SongQueued(msg.sender, msg.value, spotifyURI);
 	}
 
-	function voteSong(bytes32 spotifyURL, int8 vote) public payable {
+	function banSong(bytes32 spotifyURI) public payable {
+		require(msg.value > banCost);
+		songs[spotifyURI].bans++;
+	}
 
+	function getSong(bytes32 spotifyURI) public constant returns(uint, uint) {
+		uint requestCost = baseAddCost + banModifier * songs[spotifyURI].bans;
+		return (songs[spotifyURI].bans, requestCost);
+	}
+
+	function getBanPrice() public constant returns(uint) {
+		return banCost;
 	}
 }

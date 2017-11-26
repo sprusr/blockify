@@ -20,6 +20,9 @@ class Blockify {
     // initialise our contract reference
     this.contract = TruffleContract(BlockifyJSON)
     this.contract.setProvider(this.web3.currentProvider)
+    this.contract.defaults({
+      gas: 900000
+    })
 
     // object for storing event handlers
     this._events = {}
@@ -30,7 +33,11 @@ class Blockify {
 
     // Contract event listeners
     this.contract.deployed().then(instance => {
-      instance.events.SongQueued().on('data', event => {
+      console.log(instance)
+      instance.SongQueued(err => {
+        console.error(err)
+      }, event => {
+        console.log(event)
         this.emit('songAdded', event)
 
         // TODO add song to the playlist
@@ -40,24 +47,42 @@ class Blockify {
   }
 
   async requestSong (spotifyURI) {
-    // publish to contract
+    const instance = await this.contract.deployed()
+    const accounts = await this.web3.eth.getAccounts()
+    console.log(instance)
+    let contractSongInfo = await instance.getSong(spotifyURI, {from: accounts[0]})
+    console.log(contractSongInfo)
+    await instance.requestSong(spotifyURI, {from: accounts[0], value: contractSongInfo[1]})
+
+    // userid, playlistid
+    this.spotify.addTracksToPlaylist('1163045998', '0gl05yuwcUWrP0N0tGYRTu', ['spotify:track:' + spotifyURI]).then(data => {
+      console.log(data)
+    }, err => {
+      console.error('Something went wrong!', err)
+    })
   }
 
+  // makes the song more expensive to request
   async banSong (spotifyURI) {
-    // makes the song more expensive to request
+    let instance = await this.contract.deployed()
+    let banPrice = await instance.getBanPrice().call({from: this.web3.account})
+    await instance.banSong(spotifyURI).send({from: this.web3.account, value: banPrice})
   }
 
   async getSongInfo (spotifyURI) {
     // returns the spotify info and current queue status for a song
     // TODO get the spotify song info from the API
+
+    let spotifyInfo = {}
+
+    let deployed = await this.contract.deployed()
+    let contractSongInfo = await deployed.getSong(spotifyURI)
+
+    return Object.assign(spotifyInfo, contractSongInfo)
   }
 
-  async getQueue () {
-    // returns the current queue
-  }
-
-  async getBans () {
-    // returns the current queue
+  async searchSong (query) {
+    await this.spotify.searchTracks(query, {limit: 5})
   }
 
   on (name, handler) {
